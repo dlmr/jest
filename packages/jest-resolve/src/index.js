@@ -18,8 +18,20 @@ const path = require('path');
 const resolve = require('resolve');
 const browserResolve = require('browser-resolve');
 
+type CustomResolverOptions = {|
+  basedir: Path,
+  extensions?: Array<string>,
+  module: Path,
+  moduleDirectory?: Array<string>,
+  paths?: ?Array<Path>,
+  resolver: typeof resolve.sync,
+|};
+
+type CustomResolver = (CustomResolverOptions) => Path;
+
 type ResolverConfig = {|
   browser?: boolean,
+  customResolver: ?CustomResolver,
   defaultPlatform: ?string,
   extensions: Array<string>,
   hasCoreModules: boolean,
@@ -35,6 +47,7 @@ type FindNodeModuleConfig = {|
   extensions?: Array<string>,
   moduleDirectory?: Array<string>,
   paths?: Array<Path>,
+  customResolver?: ?CustomResolver,
 |};
 
 type ModuleNameMapperConfig = {|
@@ -63,6 +76,7 @@ class Resolver {
   constructor(moduleMap: ModuleMap, options: ResolverConfig) {
     this._options = {
       browser: options.browser,
+      customResolver: options.customResolver,
       defaultPlatform: options.defaultPlatform,
       extensions: options.extensions,
       hasCoreModules:
@@ -80,8 +94,21 @@ class Resolver {
 
   static findNodeModule(path: Path, options: FindNodeModuleConfig): ?Path {
     const paths = options.paths;
+
     try {
       const resv = options.browser ? browserResolve : resolve;
+
+      if (options.customResolver) {
+        path = options.customResolver({
+          basedir: options.basedir,
+          extensions: options.extensions,
+          module: path,
+          moduleDirectory: options.moduleDirectory,
+          paths: paths ? (nodePaths || []).concat(paths) : nodePaths,
+          resolver: resv.sync,
+        });
+      }
+
       return resv.sync(
         path,
         {
@@ -131,6 +158,7 @@ class Resolver {
       module = Resolver.findNodeModule(moduleName, {
         basedir: dirname,
         browser: this._options.browser,
+        customResolver: this._options.customResolver,
         extensions,
         moduleDirectory,
         paths,

@@ -219,6 +219,9 @@ class Runtime {
   ): Resolver {
     return new Resolver(moduleMap, {
       browser: config.browser,
+      customResolver: config.customResolver ?
+        /* $FlowFixMe */
+        require(config.customResolver) : null,
       defaultPlatform: config.haste.defaultPlatform,
       extensions: config.moduleFileExtensions.map(extension => '.' + extension),
       hasCoreModules: true,

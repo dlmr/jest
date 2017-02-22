@@ -37,6 +37,7 @@ module.exports = ({
       branches: 50,
     },
   },
+  customResolver: '<rootDir>/customResolver.js',
   expand: false,
   forceExit: false,
   globals: {},
