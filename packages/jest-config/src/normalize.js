@@ -296,7 +296,7 @@ function normalize(config: InitialConfig, argv: Object = {}) {
         break;
       case 'setupTestFrameworkScriptFile':
       case 'testResultsProcessor':
-      case 'customResolver':
+      case 'resolver':
         //$FlowFixMe
         value = resolve(config.rootDir, key, config[key]);
         break;

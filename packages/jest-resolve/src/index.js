@@ -20,18 +20,16 @@ const browserResolve = require('browser-resolve');
 
 type CustomResolverOptions = {|
   basedir: Path,
+  browser?: boolean,
   extensions?: Array<string>,
-  module: Path,
   moduleDirectory?: Array<string>,
   paths?: ?Array<Path>,
-  resolver: typeof resolve.sync,
 |};
 
-type CustomResolver = (CustomResolverOptions) => Path;
+type CustomResolver = (path: Path, options: CustomResolverOptions) => Path;
 
 type ResolverConfig = {|
   browser?: boolean,
-  customResolver: ?CustomResolver,
   defaultPlatform: ?string,
   extensions: Array<string>,
   hasCoreModules: boolean,
@@ -39,6 +37,7 @@ type ResolverConfig = {|
   moduleNameMapper: ?Array<ModuleNameMapperConfig>,
   modulePaths: Array<Path>,
   platforms?: Array<string>,
+  resolver: ?CustomResolver,
 |};
 
 type FindNodeModuleConfig = {|
@@ -47,7 +46,7 @@ type FindNodeModuleConfig = {|
   extensions?: Array<string>,
   moduleDirectory?: Array<string>,
   paths?: Array<Path>,
-  customResolver?: ?CustomResolver,
+  resolver?: ?CustomResolver,
 |};
 
 type ModuleNameMapperConfig = {|
@@ -76,7 +75,6 @@ class Resolver {
   constructor(moduleMap: ModuleMap, options: ResolverConfig) {
     this._options = {
       browser: options.browser,
-      customResolver: options.customResolver,
       defaultPlatform: options.defaultPlatform,
       extensions: options.extensions,
       hasCoreModules:
@@ -85,6 +83,7 @@ class Resolver {
       moduleNameMapper: options.moduleNameMapper,
       modulePaths: options.modulePaths,
       platforms: options.platforms,
+      resolver: options.resolver,
     };
     this._moduleMap = moduleMap;
     this._moduleIDCache  = Object.create(null);
@@ -96,18 +95,19 @@ class Resolver {
     const paths = options.paths;
 
     try {
-      const resv = options.browser ? browserResolve : resolve;
-
-      if (options.customResolver) {
-        path = options.customResolver({
-          basedir: options.basedir,
-          extensions: options.extensions,
-          module: path,
-          moduleDirectory: options.moduleDirectory,
-          paths: paths ? (nodePaths || []).concat(paths) : nodePaths,
-          resolver: resv.sync,
-        });
+      if (options.resolver) {
+        return options.resolver(path,
+          {
+            basedir: options.basedir,
+            browser: options.browser,
+            extensions: options.extensions,
+            moduleDirectory: options.moduleDirectory,
+            paths: paths ? (nodePaths || []).concat(paths) : nodePaths,
+          }
+        );
       }
+
+      const resv = options.browser ? browserResolve : resolve;
 
       return resv.sync(
         path,
@@ -116,7 +116,7 @@ class Resolver {
           extensions: options.extensions,
           moduleDirectory: options.moduleDirectory,
           paths: paths ? (nodePaths || []).concat(paths) : nodePaths,
-        },
+        }
       );
     } catch (e) {}
     return null;
@@ -158,10 +158,10 @@ class Resolver {
       module = Resolver.findNodeModule(moduleName, {
         basedir: dirname,
         browser: this._options.browser,
-        customResolver: this._options.customResolver,
         extensions,
         moduleDirectory,
         paths,
+        resolver: this._options.resolver,
       });
 
       if (module) {
