@@ -16,17 +16,6 @@ import type {ModuleMap} from 'jest-haste-map';
 const nodeModulesPaths = require('resolve/lib/node-modules-paths');
 const path = require('path');
 const resolve = require('resolve');
-const browserResolve = require('browser-resolve');
-
-type CustomResolverOptions = {|
-  basedir: Path,
-  browser?: boolean,
-  extensions?: Array<string>,
-  moduleDirectory?: Array<string>,
-  paths?: ?Array<Path>,
-|};
-
-type CustomResolver = (path: Path, options: CustomResolverOptions) => Path;
 
 type ResolverConfig = {|
   browser?: boolean,
@@ -37,7 +26,7 @@ type ResolverConfig = {|
   moduleNameMapper: ?Array<ModuleNameMapperConfig>,
   modulePaths: Array<Path>,
   platforms?: Array<string>,
-  resolver: ?CustomResolver,
+  resolver: ?Path,
 |};
 
 type FindNodeModuleConfig = {|
@@ -46,7 +35,7 @@ type FindNodeModuleConfig = {|
   extensions?: Array<string>,
   moduleDirectory?: Array<string>,
   paths?: Array<Path>,
-  resolver?: ?CustomResolver,
+  resolver?: ?Path,
 |};
 
 type ModuleNameMapperConfig = {|
@@ -92,27 +81,15 @@ class Resolver {
   }
 
   static findNodeModule(path: Path, options: FindNodeModuleConfig): ?Path {
+    /* $FlowFixMe */
+    const resolver = require(options.resolver || './defaultResolver.js');
     const paths = options.paths;
 
     try {
-      if (options.resolver) {
-        return options.resolver(path,
-          {
-            basedir: options.basedir,
-            browser: options.browser,
-            extensions: options.extensions,
-            moduleDirectory: options.moduleDirectory,
-            paths: paths ? (nodePaths || []).concat(paths) : nodePaths,
-          }
-        );
-      }
-
-      const resv = options.browser ? browserResolve : resolve;
-
-      return resv.sync(
-        path,
+      return resolver(path,
         {
           basedir: options.basedir,
+          browser: options.browser,
           extensions: options.extensions,
           moduleDirectory: options.moduleDirectory,
           paths: paths ? (nodePaths || []).concat(paths) : nodePaths,
